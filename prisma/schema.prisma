@@ -1,0 +1,136 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  username  String   @unique
+  password  String
+  name      String?
+  bio       String?  @db.Text
+  avatarUrl String?  @map("avatar_url")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  posts         Post[]
+  comments      Comment[]
+  reactions     Reaction[]
+  notifications Notification[] @relation("UserNotifications")
+  notificationsReceived Notification[] @relation("NotificationRecipient")
+
+  // Followers: users who follow this user
+  followers     Follower[] @relation("UserFollowers")
+  // Following: users this user follows
+  following     Follower[] @relation("UserFollowing")
+
+  @@index([username])
+  @@index([email])
+  @@map("users")
+}
+
+model Post {
+  id        String   @id @default(cuid())
+  content   String   @db.Text
+  imageUrl  String?  @map("image_url")
+  authorId  String   @map("author_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  author   User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  comments Comment[]
+  reactions Reaction[]
+
+  @@index([authorId])
+  @@index([createdAt(sort: Desc)])
+  @@index([authorId, createdAt])
+  @@map("posts")
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  postId    String   @map("post_id")
+  userId    String   @map("user_id")
+  content   String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@index([userId])
+  @@index([postId, createdAt])
+  @@map("comments")
+}
+
+enum ReactionType {
+  LIKE
+  LOVE
+  HAHA
+  WOW
+}
+
+model Reaction {
+  id        String       @id @default(cuid())
+  postId    String       @map("post_id")
+  userId    String       @map("user_id")
+  type      ReactionType
+  createdAt DateTime     @default(now()) @map("created_at")
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@index([postId])
+  @@index([userId])
+  @@map("reactions")
+}
+
+model Follower {
+  id         String   @id @default(cuid())
+  followerId String   @map("follower_id")
+  followingId String  @map("following_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  follower  User @relation("UserFollowers", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("UserFollowing", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+  @@map("followers")
+}
+
+enum NotificationType {
+  LIKE
+  COMMENT
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  type      NotificationType
+  userId    String           @map("user_id")
+  actorId   String           @map("actor_id")
+  postId    String?          @map("post_id")
+  commentId String?          @map("comment_id")
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  user   User @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  actor  User @relation("UserNotifications", fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, read])
+  @@index([createdAt(sort: Desc)])
+  @@map("notifications")
+}
