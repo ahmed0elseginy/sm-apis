@@ -8,7 +8,8 @@ const swaggerDefinition = {
     description: 'Production-ready Social Media Backend API (Twitter-like)',
   },
   servers: [
-    { url: `http://localhost:${config.port}`, description: 'Development' },
+    // Use relative base URL so Swagger works in both local dev and deployed environments (Render, etc.)
+    { url: '/', description: 'API Server' },
   ],
   components: {
     securitySchemes: {
